@@ -27,7 +27,7 @@ jobs:
 
       - name: Unit test
         run: ctest --output-on-failure
-        working-directory: ${{ github.workspace }}/build
+        working-directory: ${{ github.workspace }}/x64/Debug
         shell: cmd
 
       - name: Save Artifact
