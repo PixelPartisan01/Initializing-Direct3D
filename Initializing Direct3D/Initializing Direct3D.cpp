@@ -21,15 +21,7 @@ void ThrowIfFailed(HRESULT hr)
     }
 }
 
-//void EnableDebugLayer()
-//{
-//    Microsoft::WRL::ComPtr<ID3D12Debug> debugController;
-//    ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
-//    debugController->EnableDebugLayer();
-//}
-
-
-void createCommandOBjects(Microsoft::WRL::ComPtr<ID3D12Device>& md3dDevice, 
+void CreateCommandOBjects(Microsoft::WRL::ComPtr<ID3D12Device>& md3dDevice, 
                           Microsoft::WRL::ComPtr<ID3D12CommandQueue> mCommandQueue, 
                           Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mDirectCmdListAlloc,
                           Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> mCommandList)
@@ -44,11 +36,43 @@ void createCommandOBjects(Microsoft::WRL::ComPtr<ID3D12Device>& md3dDevice,
     mCommandList->Close();
 }
 
+static void CreateSwapChain(Microsoft::WRL::ComPtr<IDXGISwapChain>& mSwapChain,
+                            Microsoft::WRL::ComPtr<IDXGIFactory4> mdxgiFactory,
+                            Microsoft::WRL::ComPtr<ID3D12CommandQueue> mCommandQueue,
+                            UINT clientWidth, 
+                            UINT clientHeight, 
+                            UINT refreshRate, 
+                            bool m4xMsaaState, 
+                            UINT m4xMsaaQuality = 1, 
+                            UINT SwapChainBufferCount,
+                            HWND mhMainWnd,
+                            bool windowed = true
+                            )
+{
+    //Release previous swapchain
+    mSwapChain.Reset();
+
+    DXGI_SWAP_CHAIN_DESC sd;
+    sd.BufferDesc.Width = clientWidth;
+    sd.BufferDesc.Height = clientHeight;
+    sd.BufferDesc.RefreshRate.Numerator = refreshRate;
+    sd.BufferDesc.RefreshRate.Denominator = 1;
+    sd.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+    sd.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+    sd.SampleDesc.Count = m4xMsaaState ? 4 : 1;
+    sd.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
+    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    sd.BufferCount = SwapChainBufferCount;
+    sd.OutputWindow = mhMainWnd;
+    sd.Windowed = windowed;
+    sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+    ThrowIfFailed(mdxgiFactory->CreateSwapChain(mCommandQueue.Get(), &sd, mSwapChain.GetAddressOf()));
+}
 
 int main()  
 {  
 #if defined(DEBUG) || defined(_DEBUG)  
-   //EnableDebugLayer();  
    Microsoft::WRL::ComPtr<ID3D12Debug> debugController;  
    ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));  
    debugController->EnableDebugLayer();  
@@ -58,6 +82,9 @@ int main()
    Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mDirectCmdListAlloc;
    Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> mCommandList;
    D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msQualityLevels;
+   DXGI_FORMAT mBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+   bool m4xMsaaState = true;
+   UINT m4xMsaaQuality;
 
    Microsoft::WRL::ComPtr<IDXGIFactory4> mdxgiFactory;  
    ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&mdxgiFactory)));  
@@ -82,7 +109,9 @@ int main()
    msQualityLevels.NumQualityLevels = 0;  
 
    ThrowIfFailed(md3dDevice->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &msQualityLevels, sizeof(msQualityLevels)));
-   assert(msQualityLevels.NumQualityLevels > 0 && "Unexpected MSAA qulity level!");
+
+   m4xMsaaQuality = msQualityLevels.NumQualityLevels;
+   assert(m4xMsaaQuality > 0 && "Unexpected MSAA qulity level!");
 
    return 0;  
 }
