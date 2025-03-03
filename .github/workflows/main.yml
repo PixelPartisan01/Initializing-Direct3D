@@ -22,7 +22,7 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Build Project
-        run: msbuild Initializing Direct3D.sln /p:Configuration=Debug /p:Platform=x64
+        run: msbuild "Initializing Direct3D.sln" /p:Configuration=Debug /p:Platform=x64
         shell: cmd
 
       - name: Unit test
