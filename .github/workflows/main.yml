@@ -19,7 +19,7 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
       - name: C++ and Windows SDK
-        uses: ilammy/msvc-dev-cm@v1
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Build Project
         run: msbuild Initializing Direct3D.sln /p:Configuration=Debug /p:Platform=x64
