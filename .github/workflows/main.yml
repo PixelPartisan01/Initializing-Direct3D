@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Download repo
-        uses: actions/chechout@v4
+        uses: actions/checkout@v4
 
       - name: VS setup
         uses: microsoft/setup-msbuild@v2
