@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstdio>
 #include <string.h>
 #include <windows.h>
 #include <DirectXMath.h>
@@ -42,10 +43,10 @@ static void CreateSwapChain(Microsoft::WRL::ComPtr<IDXGISwapChain>& mSwapChain,
                             UINT clientWidth, 
                             UINT clientHeight, 
                             UINT refreshRate, 
-                            bool m4xMsaaState, 
-                            UINT m4xMsaaQuality = 1, 
                             UINT SwapChainBufferCount,
-                            HWND mhMainWnd,
+                            HWND mhMainWnd, 
+                            bool m4xMsaaState,
+                            UINT m4xMsaaQuality = 1,
                             bool windowed = true
                             )
 {
@@ -73,40 +74,49 @@ static void CreateSwapChain(Microsoft::WRL::ComPtr<IDXGISwapChain>& mSwapChain,
 int main()  
 {  
 #if defined(DEBUG) || defined(_DEBUG)  
-   Microsoft::WRL::ComPtr<ID3D12Debug> debugController;  
-   ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));  
-   debugController->EnableDebugLayer();  
+    Microsoft::WRL::ComPtr<ID3D12Debug> debugController;
+    ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));  
+    debugController->EnableDebugLayer();
+    std::printf("Debug - ON\n\n");
 #endif  
 
    Microsoft::WRL::ComPtr<ID3D12CommandQueue> mCommandQueue;
    Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mDirectCmdListAlloc;
    Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> mCommandList;
+   Microsoft::WRL::ComPtr<ID3D12Fence> mFence;
    D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msQualityLevels;
    DXGI_FORMAT mBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
    bool m4xMsaaState = true;
    UINT m4xMsaaQuality;
 
+   //Qulity
+   msQualityLevels.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+   msQualityLevels.SampleCount = 4;
+   msQualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
+   msQualityLevels.NumQualityLevels = 0;
+
+   std::printf("Creating mdxgiFactory...\n");
    Microsoft::WRL::ComPtr<IDXGIFactory4> mdxgiFactory;  
-   ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&mdxgiFactory)));  
+   ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&mdxgiFactory)));
+   std::printf("\tmdxgiFactory is created successfully.\n");
 
    //Creating Device  
+   std::printf("Creating device...\n");
    Microsoft::WRL::ComPtr<ID3D12Device> md3dDevice;  
    HRESULT hardwareResult = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&md3dDevice));  
-   if (FAILED(hardwareResult))  
+   if (!FAILED(hardwareResult))  
    {  
        Microsoft::WRL::ComPtr<IDXGIAdapter> pWarpAdapter;  
        ThrowIfFailed(mdxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&pWarpAdapter)));  
-       ThrowIfFailed(D3D12CreateDevice(pWarpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&md3dDevice)));  
-   }  
+       ThrowIfFailed(D3D12CreateDevice(pWarpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&md3dDevice)));
+       std::printf("\tDevice is created successfully.\n");
+   } 
+   
 
    //Fence  
-   //ThrowIfFailed(md3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));  
-
-   //Qulity
-   msQualityLevels.Format = DXGI_FORMAT_R8G8B8A8_UNORM;  
-   msQualityLevels.SampleCount = 4;  
-   msQualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;  
-   msQualityLevels.NumQualityLevels = 0;  
+   std::printf("Creating fence...\n");
+   ThrowIfFailed(md3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
+   std::printf("\tFence is created successfully.\n");
 
    ThrowIfFailed(md3dDevice->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &msQualityLevels, sizeof(msQualityLevels)));
 
