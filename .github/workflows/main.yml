@@ -35,5 +35,5 @@ jobs:
         with:
           name: DX12-Build
           path: |
-            ${{ github.workspace }}/build/Debug
+            ${{ github.workspace }}/x64/Debug
       
