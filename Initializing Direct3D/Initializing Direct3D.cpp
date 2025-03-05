@@ -22,33 +22,54 @@ void ThrowIfFailed(HRESULT hr)
     }
 }
 
-void CreateCommandOBjects(Microsoft::WRL::ComPtr<ID3D12Device>& md3dDevice, 
-                          Microsoft::WRL::ComPtr<ID3D12CommandQueue> mCommandQueue, 
-                          Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mDirectCmdListAlloc,
-                          Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> mCommandList)
+/// <summary>
+/// Creates the command objects for the Direct3D application.
+/// </summary>
+/// <param name="md3dDevice">The Direct3D device.</param>
+/// <param name="mCommandQueue">The command queue to be created.</param>
+/// <param name="mDirectCmdListAlloc">The command allocator to be created.</param>
+/// <param name="mCommandList">The command list to be created.</param>
+void CreateCommandOBjects(Microsoft::WRL::ComPtr<ID3D12Device> &md3dDevice, 
+                         Microsoft::WRL::ComPtr<ID3D12CommandQueue> &mCommandQueue, 
+                         Microsoft::WRL::ComPtr<ID3D12CommandAllocator> &mDirectCmdListAlloc,
+                         Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> &mCommandList)
 {
-    D3D12_COMMAND_QUEUE_DESC queueDesc = {};
-    queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-    queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-    ThrowIfFailed(md3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&mCommandQueue)));
-    ThrowIfFailed(md3dDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mDirectCmdListAlloc.GetAddressOf())));
-    ThrowIfFailed(md3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mDirectCmdListAlloc.Get(), nullptr, IID_PPV_ARGS(mCommandList.GetAddressOf())));
+   D3D12_COMMAND_QUEUE_DESC queueDesc = {};
+   queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+   queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+   ThrowIfFailed(md3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&mCommandQueue)));
+   ThrowIfFailed(md3dDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mDirectCmdListAlloc.GetAddressOf())));
+   ThrowIfFailed(md3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mDirectCmdListAlloc.Get(), nullptr, IID_PPV_ARGS(mCommandList.GetAddressOf())));
 
-    mCommandList->Close();
+   mCommandList->Close();
 }
 
-static void CreateSwapChain(Microsoft::WRL::ComPtr<IDXGISwapChain>& mSwapChain,
-                            Microsoft::WRL::ComPtr<IDXGIFactory4> mdxgiFactory,
-                            Microsoft::WRL::ComPtr<ID3D12CommandQueue> mCommandQueue,
-                            UINT clientWidth, 
-                            UINT clientHeight, 
-                            UINT refreshRate, 
-                            UINT SwapChainBufferCount,
-                            HWND mhMainWnd, 
-                            bool m4xMsaaState,
-                            UINT m4xMsaaQuality = 1,
-                            bool windowed = true
-                            )
+
+/// <summary>  
+/// Creates the swap chain for the Direct3D application.  
+/// </summary>  
+/// <param name="mSwapChain">The swap chain to be created.</param>  
+/// <param name="mdxgiFactory">The DXGI factory used to create the swap chain.</param>  
+/// <param name="mCommandQueue">The command queue used for rendering commands.</param>  
+/// <param name="clientWidth">The width of the client area.</param>  
+/// <param name="clientHeight">The height of the client area.</param>  
+/// <param name="refreshRate">The refresh rate of the swap chain.</param>  
+/// <param name="SwapChainBufferCount">The number of buffers in the swap chain.</param>  
+/// <param name="mhMainWnd">The handle to the main window.</param>  
+/// <param name="m4xMsaaState">The state of 4x MSAA (enabled or disabled).</param>  
+/// <param name="m4xMsaaQuality">The quality level of 4x MSAA.</param>  
+/// <param name="windowed">Specifies whether the swap chain is windowed or full-screen.</param>
+void CreateSwapChain(Microsoft::WRL::ComPtr<IDXGISwapChain> &mSwapChain,
+                     Microsoft::WRL::ComPtr<IDXGIFactory4> &mdxgiFactory,
+                     Microsoft::WRL::ComPtr<ID3D12CommandQueue> &mCommandQueue,
+                     UINT clientWidth, 
+                     UINT clientHeight, 
+                     UINT refreshRate, 
+                     UINT SwapChainBufferCount,
+                     HWND mhMainWnd, 
+                     bool m4xMsaaState,
+                     UINT m4xMsaaQuality = 1,
+                     bool windowed = true)
 {
     //Release previous swapchain
     mSwapChain.Reset();
@@ -71,6 +92,41 @@ static void CreateSwapChain(Microsoft::WRL::ComPtr<IDXGISwapChain>& mSwapChain,
     ThrowIfFailed(mdxgiFactory->CreateSwapChain(mCommandQueue.Get(), &sd, mSwapChain.GetAddressOf()));
 }
 
+
+/// <summary>
+/// Creates the Render Target View (RTV) and Depth Stencil View (DSV) descriptor heaps.
+/// </summary>
+/// <param name="SwapChainBufferCount">The number of buffers in the swap chain.</param>
+/// <param name="md3dDevice">The Direct3D device.</param>
+/// <param name="mRtvHeap">The RTV descriptor heap to be created.</param>
+/// <param name="mDsvHeap">The DSV descriptor heap to be created.</param>
+void CreateRtvAndDsvDescriptorHeaps(UINT SwapChainBufferCount, 
+                                    Microsoft::WRL::ComPtr<ID3D12Device> &md3dDevice,
+                                    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> &mRtvHeap,
+                                    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> &mDsvHeap)
+{
+    D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
+    rtvHeapDesc.NumDescriptors = SwapChainBufferCount;
+    rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+    rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    rtvHeapDesc.NodeMask = 0;
+    ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(mRtvHeap.GetAddressOf())));
+
+    D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
+    dsvHeapDesc.NumDescriptors = 1;
+    dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+    dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    dsvHeapDesc.NodeMask = 0;
+    ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(mDsvHeap.GetAddressOf())));
+}
+
+//D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& mRtvHeap,
+//                                                  Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& mDsvHeap,
+//                                                  int mCurrBackBuffer) const
+//{
+//    return;
+//}
+
 int main()  
 {  
 #if defined(DEBUG) || defined(_DEBUG)  
@@ -78,50 +134,56 @@ int main()
     ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));  
     debugController->EnableDebugLayer();
     std::printf("Debug - ON\n\n");
-#endif  
+#endif
 
-   Microsoft::WRL::ComPtr<ID3D12CommandQueue> mCommandQueue;
-   Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mDirectCmdListAlloc;
-   Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> mCommandList;
-   Microsoft::WRL::ComPtr<ID3D12Fence> mFence;
-   D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msQualityLevels;
-   DXGI_FORMAT mBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-   bool m4xMsaaState = true;
-   UINT m4xMsaaQuality;
+    static const UINT SwapChainBufferCount{ 2 };
+    int mCurrBackBuffer{ 0 };
+    DXGI_FORMAT mBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+    bool m4xMsaaState = true;
+    UINT m4xMsaaQuality;
+    
+    Microsoft::WRL::ComPtr<ID3D12Fence> mFence;
+    Microsoft::WRL::ComPtr<ID3D12CommandQueue> mCommandQueue;
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mRtvHeap; // Render Target View
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mDsvHeap; // Depth/Stencil View
+    Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mDirectCmdListAlloc;
+    Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> mCommandList;
+    
+    //Qulity
+    D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msQualityLevels;
+    msQualityLevels.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    msQualityLevels.SampleCount = 4;
+    msQualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
+    msQualityLevels.NumQualityLevels = 0;
 
-   //Qulity
-   msQualityLevels.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-   msQualityLevels.SampleCount = 4;
-   msQualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
-   msQualityLevels.NumQualityLevels = 0;
+    std::printf("Creating mdxgiFactory...\n");
+    Microsoft::WRL::ComPtr<IDXGIFactory4> mdxgiFactory;  
+    ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&mdxgiFactory)));
+    std::printf("\tmdxgiFactory is created successfully.\n");
 
-   std::printf("Creating mdxgiFactory...\n");
-   Microsoft::WRL::ComPtr<IDXGIFactory4> mdxgiFactory;  
-   ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&mdxgiFactory)));
-   std::printf("\tmdxgiFactory is created successfully.\n");
+    //Creating Device  
+    std::printf("Creating device...\n");
+    Microsoft::WRL::ComPtr<ID3D12Device> md3dDevice;  
+    HRESULT hardwareResult = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&md3dDevice));  
+    if (!FAILED(hardwareResult))  
+    {  
+        Microsoft::WRL::ComPtr<IDXGIAdapter> pWarpAdapter;  
+        ThrowIfFailed(mdxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&pWarpAdapter)));  
+        ThrowIfFailed(D3D12CreateDevice(pWarpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&md3dDevice)));
+        std::printf("\tDevice is created successfully.\n");
+    } 
 
-   //Creating Device  
-   std::printf("Creating device...\n");
-   Microsoft::WRL::ComPtr<ID3D12Device> md3dDevice;  
-   HRESULT hardwareResult = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&md3dDevice));  
-   if (!FAILED(hardwareResult))  
-   {  
-       Microsoft::WRL::ComPtr<IDXGIAdapter> pWarpAdapter;  
-       ThrowIfFailed(mdxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&pWarpAdapter)));  
-       ThrowIfFailed(D3D12CreateDevice(pWarpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&md3dDevice)));
-       std::printf("\tDevice is created successfully.\n");
-   } 
-   
+    //Fence  
+    std::printf("Creating fence...\n");
+    ThrowIfFailed(md3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
+    std::printf("\tFence is created successfully.\n");
 
-   //Fence  
-   std::printf("Creating fence...\n");
-   ThrowIfFailed(md3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
-   std::printf("\tFence is created successfully.\n");
+    ThrowIfFailed(md3dDevice->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &msQualityLevels, sizeof(msQualityLevels)));
 
-   ThrowIfFailed(md3dDevice->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &msQualityLevels, sizeof(msQualityLevels)));
+    m4xMsaaQuality = msQualityLevels.NumQualityLevels;
+    assert(m4xMsaaQuality > 0 && "Unexpected MSAA qulity level!");
 
-   m4xMsaaQuality = msQualityLevels.NumQualityLevels;
-   assert(m4xMsaaQuality > 0 && "Unexpected MSAA qulity level!");
+    
 
-   return 0;  
+    return 0;  
 }
