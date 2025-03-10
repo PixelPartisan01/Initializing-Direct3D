@@ -7,18 +7,25 @@
 #include <dxgi.h>
 #include <dxgi1_6.h>
 #include <d3d12.h>
+#include <d3dx12.h>
 #include <wrl.h> 
 #include <exception>
+#include <WinHvPlatform.h>
+#include <comdef.h>
 
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")
 
-void ThrowIfFailed(HRESULT hr)
+HRESULT ThrowIfFailed(HRESULT hr)
 {
     if (FAILED(hr))
     {
-        throw std::exception();
+        _com_error err(hr);
+        std::wcerr << err.ErrorMessage() << std::endl;
+        //std::wcerr << static_cast<const wchar_t*>(err.Description()) << std::endl;
+        std::wcerr << err.HelpContext() << std::endl;
+        return hr;
     }
 }
 
@@ -122,10 +129,35 @@ void CreateRtvAndDsvDescriptorHeaps(UINT SwapChainBufferCount,
 
 //D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& mRtvHeap,
 //                                                  Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& mDsvHeap,
-//                                                  int mCurrBackBuffer) const
+//                                                  int mCurrBackBuffer)
 //{
-//    return;
+//    return D3D12_CPU_DESCRIPTOR_HANDLE(mRtvHeap->GetCPUDescriptorHandleForHeapStart(), mCurrBackBuffer, 0);
 //}
+
+LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    switch (uMsg)
+    {
+    case WM_DESTROY:
+        PostQuitMessage(0);
+        return 0;
+
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hwnd, &ps);
+
+        // All painting occurs here, between BeginPaint and EndPaint.
+
+        FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_WINDOW + 1));
+
+        EndPaint(hwnd, &ps);
+    }
+    return 0;
+
+    }
+    return DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
 
 int main()  
 {  
@@ -139,15 +171,20 @@ int main()
     static const UINT SwapChainBufferCount{ 2 };
     int mCurrBackBuffer{ 0 };
     DXGI_FORMAT mBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-    bool m4xMsaaState = true;
+    bool m4xMsaaState = false;
     UINT m4xMsaaQuality;
-    
+    UINT mRtvDescriptorSize{ 1 };
+    UINT clientWidth{ 800 };
+    UINT clientHeight{ 700 };
+
     Microsoft::WRL::ComPtr<ID3D12Fence> mFence;
     Microsoft::WRL::ComPtr<ID3D12CommandQueue> mCommandQueue;
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mRtvHeap; // Render Target View
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mDsvHeap; // Depth/Stencil View
+    Microsoft::WRL::ComPtr<IDXGISwapChain> mSwapChain;
     Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mDirectCmdListAlloc;
     Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> mCommandList;
+    Microsoft::WRL::ComPtr<ID3D12Resource> mSwapChainBuffer[SwapChainBufferCount];
     
     //Qulity
     D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msQualityLevels;
@@ -182,8 +219,25 @@ int main()
 
     m4xMsaaQuality = msQualityLevels.NumQualityLevels;
     assert(m4xMsaaQuality > 0 && "Unexpected MSAA qulity level!");
-
     
+    WNDCLASSEXW wc = { sizeof(wc), CS_CLASSDC, WindowProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, L"Example", nullptr };
+    ::RegisterClassExW(&wc);
+    HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"3D App", WS_OVERLAPPEDWINDOW, 100, 100, clientWidth, clientHeight, nullptr, nullptr, wc.hInstance, nullptr);
+    ::ShowWindow(hwnd, SW_SHOWDEFAULT);
+    ::UpdateWindow(hwnd);
+
+    CreateRtvAndDsvDescriptorHeaps(SwapChainBufferCount, md3dDevice, mRtvHeap, mDsvHeap);//
+    CreateSwapChain(mSwapChain, mdxgiFactory, mCommandQueue, clientWidth, clientHeight, 60, SwapChainBufferCount, hwnd, m4xMsaaState, m4xMsaaQuality, true);
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeaphandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
+    for (UINT i = 0; i < SwapChainBufferCount; i++)
+    {
+        ThrowIfFailed(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mSwapChainBuffer[i])));
+        md3dDevice->CreateRenderTargetView(mSwapChainBuffer[i].Get(), nullptr, rtvHeaphandle);
+        rtvHeaphandle.Offset(1, mRtvDescriptorSize);
+    }
+    
+
 
     return 0;  
 }
